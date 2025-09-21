@@ -1,0 +1,87 @@
+{
+  "expo": {
+    "name": "Gilgit Ride Negotiate",
+    "slug": "gilgit-ride-negotiate",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "sdkVersion": "54.0.0",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "This app needs access to location to show your current position on the map and find nearby drivers.",
+          "locationAlwaysPermission": "This app needs access to location to show your current position on the map and find nearby drivers.",
+          "locationWhenInUsePermission": "This app needs access to location to show your current position on the map and find nearby drivers."
+        }
+      ],
+      [
+        "expo-maps",
+        {
+          "googleMapsApiKey": "AIzaSyDyPrl-d-4u6LMA53mErpIx2yIFiy_1JSc"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0"
+          },
+          "ios": {
+            "buildReactNativeFromSource": false
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ffffff",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyDyPrl-d-4u6LMA53mErpIx2yIFiy_1JSc"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDyPrl-d-4u6LMA53mErpIx2yIFiy_1JSc"
+        }
+      },
+      "package": "com.gilgitride.app",
+      "compileSdkVersion": 36,
+      "targetSdkVersion": 36
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
