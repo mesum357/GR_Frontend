@@ -1,4 +1,5 @@
 import { GOOGLE_MAPS_CONFIG, GOOGLE_API_ENDPOINTS } from '../config/api';
+import { LocationService } from './LocationService';
 import { showGoogleMapsBillingAlert } from '../components/GoogleMapsAlert';
 
 export interface DirectionsResult {
@@ -179,9 +180,13 @@ export class GoogleMapsService {
    * Reverse geocode coordinates to get address
    */
   static async reverseGeocode(latitude: number, longitude: number): Promise<string> {
-    // If billing is disabled, immediately return fallback
+    // If billing is disabled, use device geocoder fallback for a nicer place name
     if (this.billingDisabled) {
-      return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      try {
+        return await LocationService.getAddressFromCoordinates(latitude, longitude);
+      } catch (_) {
+        return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      }
     }
     
     try {
@@ -197,19 +202,32 @@ export class GoogleMapsService {
         console.warn('⚠️ Google Maps API REQUEST_DENIED. Disabling further API calls until restart.');
         this.billingDisabled = true; // Disable further calls
         showGoogleMapsBillingAlert(); // Show user-friendly alert
-        return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        try {
+          return await LocationService.getAddressFromCoordinates(latitude, longitude);
+        } catch (_) {
+          return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        }
       }
 
       if (data.status !== 'OK' || !data.results || data.results.length === 0) {
-        console.warn('⚠️ Reverse geocoding failed, using coordinates as fallback');
-        return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        console.warn('⚠️ Reverse geocoding failed, using device geocoder as fallback');
+        try {
+          return await LocationService.getAddressFromCoordinates(latitude, longitude);
+        } catch (_) {
+          return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        }
       }
 
-      return data.results[0].formatted_address;
+      const formatted = data.results[0].formatted_address as string;
+      // Prefer shorter names when possible
+      return formatted;
     } catch (error) {
       console.error('❌ Error reverse geocoding:', error);
-      // Return fallback instead of throwing
-      return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      try {
+        return await LocationService.getAddressFromCoordinates(latitude, longitude);
+      } catch (_) {
+        return `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      }
     }
   }
 
@@ -259,8 +277,8 @@ export class GoogleMapsService {
     try {
       // Use Gilgit city coordinates for location bias
       const gilgitLocation = {
-        latitude: 35.9208,
-        longitude: 74.3144,
+        lat: 35.9208,
+        lng: 74.3144,
       };
       
       const url = GOOGLE_API_ENDPOINTS.placeAutocomplete(

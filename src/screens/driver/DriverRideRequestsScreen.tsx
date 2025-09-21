@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { authenticatedApiRequest } from '../../config/api';
+import { LocationService } from '../../services/LocationService';
 import RideRouteModal from '../../components/RideRouteModal';
 import NotificationService from '../../services/NotificationService';
 import { webSocketService } from '../../services/WebSocketService';
@@ -279,39 +280,35 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
         setIsLoading(true);
       }
 
-      console.log('🔧 Making API request to /ride-requests/available-simple');
-      const response = await authenticatedApiRequest('/ride-requests/available-simple', {
+      console.log('🔧 Making API request to /api/ride-requests/available-simple');
+      const simpleData = await authenticatedApiRequest('/api/ride-requests/available-simple', {
         method: 'GET',
       });
 
-      console.log('🔧 API response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔧 API response data:', data);
-        
-        // Deduplicate requests based on ID
-        const deduplicatedRequests = data.rideRequests.filter((request: RideRequest, index: number, self: RideRequest[]) => 
-          index === self.findIndex(r => r.id === request.id)
-        );
-
-        console.log('🔧 Deduplicated requests:', deduplicatedRequests.length);
-        setRideRequests(deduplicatedRequests);
-        processNotifications();
-        
-        // REMOVED EXCESSIVE DEBUG LOGGING
-        // Only log when there are actual changes
-        if (deduplicatedRequests.length !== rideRequests.length) {
-          console.log(`🔧 Ride requests updated: ${deduplicatedRequests.length} available`);
-        }
-        
-      } else {
-        console.error('Failed to fetch ride requests:', response.status);
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Error details:', errorData);
+      const simpleList: RideRequest[] = (simpleData?.rideRequests || []) as RideRequest[];
+      const dedupSimple = simpleList.filter((request, index, self) => index === self.findIndex(r => r.id === request.id));
+      console.log('🔧 Simple list received:', dedupSimple.length);
+      setRideRequests(dedupSimple);
+      processNotifications();
+      if (dedupSimple.length !== rideRequests.length) {
+        console.log(`🔧 Ride requests updated: ${dedupSimple.length} available`);
       }
     } catch (error) {
-      console.error('Error fetching ride requests:', error);
+      console.error('Error fetching ride requests (simple):', error);
+      // Fallback: use location-aware endpoint
+      try {
+        console.log('🔧 Fallback to /api/ride-requests/available with driver location');
+        const coords = await LocationService.getCurrentLocationCoordinates();
+        const url = `/api/ride-requests/available?latitude=${coords.latitude}&longitude=${coords.longitude}&radius=5`;
+        const nearbyData = await authenticatedApiRequest(url, { method: 'GET' });
+        const list = (nearbyData?.rideRequests || nearbyData?.requests || []) as RideRequest[];
+        const dedup = list.filter((request, index, self) => index === self.findIndex(r => r.id === request.id));
+        console.log('🔧 Nearby list received:', dedup.length);
+        setRideRequests(dedup);
+        processNotifications();
+      } catch (fbError) {
+        console.error('Error fetching ride requests (fallback):', fbError);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -666,37 +663,7 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
           </View>
         )}
 
-        <View style={styles.actionButtons}>
-          <Button
-            mode="outlined"
-            onPress={() => handleDeclineRide(request.id)}
-            style={[styles.declineButton, { borderColor: theme.colors.error }]}
-            labelStyle={{ color: theme.colors.error }}
-          >
-            Decline
-          </Button>
-          
-          {request.riderOffer && (
-            <Button
-              mode="outlined"
-              onPress={() => handleOfferRide(request.id)}
-              style={[styles.offerButton, { borderColor: theme.colors.secondary }]}
-              labelStyle={{ color: theme.colors.secondary }}
-              loading={offeringRequest === request.id}
-            >
-              Offer
-            </Button>
-          )}
-          
-          <Button
-            mode="contained"
-            onPress={() => handleAcceptRide(request.id)}
-            style={[styles.acceptButton, { backgroundColor: theme.colors.primary }]}
-            loading={acceptingRequest === request.id}
-          >
-            Accept
-          </Button>
-        </View>
+        {/* Action buttons removed per requirements */}
 
         {request.autoAccept && (
           <Chip 

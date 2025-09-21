@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { Surface, FAB } from 'react-native-paper';
+import { Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,6 +53,58 @@ const RiderScreen = () => {
   const [isDestinationMapVisible, setIsDestinationMapVisible] = useState(false);
   const [showFareOfferingModal, setShowFareOfferingModal] = useState(false);
   const [showRideRouteModal, setShowRideRouteModal] = useState(false);
+  const [isMapInteracting, setIsMapInteracting] = useState(false);
+
+  // Animation values for fullscreen-on-drag map behavior
+  const mapHeightAnim = useRef(new Animated.Value(height * 0.5)).current;
+  const sectionsTranslateY = useRef(new Animated.Value(0)).current;
+  const sectionsOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isMapInteracting) {
+      Animated.parallel([
+        Animated.timing(mapHeightAnim, {
+          toValue: height,
+          duration: 220,
+          easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+          useNativeDriver: false,
+        }),
+        Animated.timing(sectionsTranslateY, {
+          toValue: 100,
+          duration: 200,
+          easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sectionsOpacity, {
+          toValue: 0,
+          duration: 160,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(mapHeightAnim, {
+          toValue: height * 0.5,
+          duration: 220,
+          easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+          useNativeDriver: false,
+        }),
+        Animated.timing(sectionsTranslateY, {
+          toValue: 0,
+          duration: 200,
+          easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sectionsOpacity, {
+          toValue: 1,
+          duration: 160,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isMapInteracting, mapHeightAnim, sectionsTranslateY, sectionsOpacity]);
   const [recentLocations, setRecentLocations] = useState<string[]>([
     'Khudadad Heights',
     'Service Rd I-11 S', 
@@ -479,25 +532,40 @@ const RiderScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Interactive Map Section */}
-      <View style={styles.mapSection}>
+      <Animated.View style={[
+        styles.mapSection,
+        { height: mapHeightAnim },
+        isMapInteracting && { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 },
+      ]}>
         <InteractiveRideMap
           onLocationChange={handleMapLocationChange}
           onSubmit={handleMapSubmit}
           showSubmitButton={!!(destinationData && selectedTransportMode)}
           selectedTransportMode={selectedTransportMode}
+          onInteractionStart={() => setIsMapInteracting(true)}
+          onInteractionEnd={() => setIsMapInteracting(false)}
+          isFullscreen={isMapInteracting}
         />
-      </View>
+      </Animated.View>
 
       {/* Transport Mode Selector */}
-      <View style={[styles.transportSection, { backgroundColor: theme.colors.surface }]}>
+      <Animated.View pointerEvents={isMapInteracting ? 'none' : 'auto'} style={[
+        styles.transportSection,
+        { backgroundColor: theme.colors.surface },
+        { opacity: sectionsOpacity, transform: [{ translateY: sectionsTranslateY }] },
+      ]}> 
         <TransportModeSelector
           onModeSelect={handleTransportModeSelect}
           selectedMode={selectedTransportMode}
         />
-      </View>
+      </Animated.View>
 
       {/* Bottom Section with Search and Recent Locations */}
-      <View style={[styles.bottomSection, { backgroundColor: theme.colors.surface, paddingBottom: insets.bottom + 20, paddingTop: 20 }]}>
+      <Animated.View pointerEvents={isMapInteracting ? 'none' : 'auto'} style={[
+        styles.bottomSection,
+        { backgroundColor: theme.colors.surface, paddingBottom: insets.bottom + 20, paddingTop: 20 },
+        { opacity: sectionsOpacity, transform: [{ translateY: sectionsTranslateY }] },
+      ]}> 
         {/* Where to & for how much Button */}
         <Surface style={[styles.searchContainer, { backgroundColor: theme.colors.surfaceVariant }]} elevation={1}>
           <TouchableOpacity
@@ -561,7 +629,7 @@ const RiderScreen = () => {
         {(pickupLocation || destination) && (
           <View style={styles.routeStatus} />
         )}
-      </View>
+      </Animated.View>
 
       {/* Route Entry Modal */}
       <RouteEntryModal
@@ -657,7 +725,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapSection: {
-    height: height * 0.5, // Fixed height instead of flex
+    height: height * 0.5, // Default height; goes fullscreen during interaction
   },
   transportSection: {
     borderTopLeftRadius: 20,

@@ -46,6 +46,8 @@ export const GOOGLE_API_ENDPOINTS = {
     let url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${GOOGLE_MAPS_CONFIG.API_KEY}`;
     if (location && radius) {
       url += `&location=${location.lat},${location.lng}&radius=${radius}`;
+      // Bias to Pakistan and prioritize Gilgit-Baltistan region
+      url += `&components=country:pk`;
     }
     return url;
   },

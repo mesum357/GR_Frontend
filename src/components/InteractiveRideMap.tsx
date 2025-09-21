@@ -29,6 +29,9 @@ interface InteractiveRideMapProps {
   onSubmit: () => void;
   showSubmitButton?: boolean;
   selectedTransportMode?: TransportMode | null;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
+  isFullscreen?: boolean;
 }
 
 const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
@@ -36,6 +39,9 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
   onSubmit,
   showSubmitButton = true,
   selectedTransportMode,
+  onInteractionStart,
+  onInteractionEnd,
+  isFullscreen,
 }) => {
   const { theme } = useTheme();
   const mapRef = useRef<MapView>(null);
@@ -69,6 +75,8 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
   const [retryCount, setRetryCount] = useState(0);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(true);
   const mapLoadingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasMovedRef = useRef<boolean>(false);
 
   useEffect(() => {
     getCurrentLocation();
@@ -210,6 +218,10 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
     // User is actively moving the pin
     setIsPinMoving(true);
     setShowPickupPopup(false);
+    if (onInteractionStart) {
+      onInteractionStart();
+    }
+    hasMovedRef.current = true;
     
     // Clear any existing popup timeout
     if (popupTimeout.current) {
@@ -229,6 +241,9 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
     popupTimeout.current = setTimeout(() => {
       setIsPinMoving(false);
       setShowPickupPopup(true);
+      if (onInteractionEnd) {
+        onInteractionEnd();
+      }
     }, 500); // Delay to prevent flickering
     
     // Debounce to prevent excessive API calls
@@ -347,6 +362,32 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
         style={styles.map}
         onRegionChange={handleRegionChange}
         onRegionChangeComplete={handleRegionChangeComplete}
+        onTouchStart={() => {
+          hasMovedRef.current = false;
+          if (holdTimerRef.current) {
+            clearTimeout(holdTimerRef.current);
+          }
+          holdTimerRef.current = setTimeout(() => {
+            if (onInteractionStart) {
+              onInteractionStart();
+            }
+          }, 120);
+        }}
+        onTouchEnd={() => {
+          if (holdTimerRef.current) {
+            clearTimeout(holdTimerRef.current);
+            holdTimerRef.current = null;
+          }
+          if (!isPinMoving && onInteractionEnd) {
+            onInteractionEnd();
+          }
+        }}
+        onPanDrag={() => {
+          if (onInteractionStart) {
+            onInteractionStart();
+          }
+          hasMovedRef.current = true;
+        }}
         showsUserLocation={true}
         showsMyLocationButton={false}
         mapType="standard"
@@ -400,7 +441,10 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
       )}
 
       {/* Fixed Center Marker (Destination Selection Pin) */}
-      <View style={styles.centerMarkerContainer}>
+      <View style={[
+        styles.centerMarkerContainer,
+        isFullscreen ? { marginTop: -120 } : { marginTop: -20 },
+      ]}>
         <View style={styles.centerMarker}>
           <View style={styles.markerPin}>
             <View style={styles.markerPinInner} />
@@ -453,13 +497,7 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
         </Surface>
       )}
 
-      {destinationMarker && (
-        <Surface style={[styles.instructionCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={2}>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, textAlign: 'center' }}>
-            Move the map to adjust your destination
-          </Text>
-        </Surface>
-      )}
+      {/* Removed 'Move the map to adjust your destination' label for a cleaner UI */}
     </View>
   );
 };
@@ -470,8 +508,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   map: {
-    width: width,
-    height: height * 0.65,
+    width: '100%',
+    height: '100%',
   },
   controlsContainer: {
     position: 'absolute',
@@ -535,8 +573,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginTop: -80, // Position above current location marker
-    marginLeft: -20, // Half of marker width (40/2)
+    marginTop: -20,
+    marginLeft: -20,
     zIndex: 1000,
   },
   centerMarker: {

@@ -463,8 +463,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginTop: -20, // Half of marker height (40/2)
-    marginLeft: -20, // Half of marker width (40/2)
+    marginTop: -20,
+    marginLeft: -20,
     zIndex: 1000,
   },
   centerMarker: {
