@@ -443,7 +443,7 @@ const InteractiveRideMap: React.FC<InteractiveRideMapProps> = ({
       {/* Fixed Center Marker (Destination Selection Pin) */}
       <View style={[
         styles.centerMarkerContainer,
-        isFullscreen ? { marginTop: -120 } : { marginTop: -20 },
+        { marginTop: -20 },
       ]}>
         <View style={styles.centerMarker}>
           <View style={styles.markerPin}>

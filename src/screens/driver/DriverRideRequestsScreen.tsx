@@ -89,6 +89,58 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
       // Authenticate with WebSocket
       webSocketService.authenticate(user._id, 'driver');
 
+      // Auto-add new ride requests pushed by backend
+      const handleNewRideRequest = (data: any) => {
+        try {
+          const id = data.rideRequestId || data._id || data.id;
+          if (!id) return;
+          setRideRequests(prev => {
+            const exists = prev.some(r => r.id === id);
+            if (exists) return prev;
+            const mapped: RideRequest = {
+              _id: id,
+              id,
+              pickupLocation: data.pickup?.address || data.pickupLocation?.address || 'Unknown location',
+              pickupLocationDetails: {
+                address: data.pickup?.address || data.pickupLocation?.address || 'Unknown location',
+                coordinates: [
+                  (data.pickup?.longitude ?? data.pickupLocation?.longitude ?? 0),
+                  (data.pickup?.latitude ?? data.pickupLocation?.latitude ?? 0),
+                ],
+              },
+              destinationDetails: {
+                address: data.destination?.address || data.dropoff?.address || 'Unknown destination',
+                coordinates: [
+                  (data.destination?.longitude ?? data.dropoff?.longitude ?? 0),
+                  (data.destination?.latitude ?? data.dropoff?.latitude ?? 0),
+                ],
+              },
+              dropoffLocation: data.destination?.address || data.dropoff?.address || 'Unknown destination',
+              distance: typeof data.distance === 'number' ? `${data.distance.toFixed(1)} km` : (data.distance || '0 km'),
+              estimatedFare: data.offeredFare ?? data.requestedPrice ?? 0,
+              requestedPrice: data.requestedPrice ?? 0,
+              estimatedDuration: data.estimatedDuration ?? 0,
+              estimatedDistance: typeof data.distance === 'number' ? data.distance : parseFloat((data.distance || '0').toString().replace(' km','')) || 0,
+              riderName: data.rider ? `${data.rider.firstName || ''} ${data.rider.lastName || ''}`.trim() || 'Unknown Rider' : 'Unknown Rider',
+              riderPhone: data.rider?.phone || 'N/A',
+              riderRating: data.rider?.rating || 4.5,
+              estimatedTime: data.estimatedDuration ? `${data.estimatedDuration} min` : 'Unknown',
+              requestTime: data.createdAt ? new Date(data.createdAt).toLocaleTimeString() : 'Unknown',
+              paymentMethod: data.paymentMethod || 'cash',
+              specialRequests: data.notes,
+              riderOffer: data.requestedPrice,
+              vehicleType: data.vehicleType,
+              autoAccept: false,
+              status: data.status || 'pending',
+              createdAt: data.createdAt || new Date().toISOString(),
+            };
+            return [mapped, ...prev];
+          });
+        } catch (e) {
+          console.error('Error handling new ride_request event:', e);
+        }
+      };
+
       // Listen for ride request cancellations
       const handleRideRequestCancelled = (data: any) => {
         console.log('🔧 Received ride request cancellation:', data);
@@ -100,12 +152,7 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
           return filtered;
         });
         
-        // Show notification to driver
-        Alert.alert(
-          'Ride Request Cancelled',
-          'A ride request you were viewing has been cancelled by the rider.',
-          [{ text: 'OK' }]
-        );
+        // No popup alert - cancelled rides disappear silently
       };
 
       // Listen for fare response timeout
@@ -134,11 +181,15 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
       };
 
       // Set up WebSocket listeners
+      webSocketService.on('ride_request', handleNewRideRequest);
+      webSocketService.on('ride_request_cancelled', handleRideRequestCancelled);
       webSocketService.on('ride_cancelled', handleRideRequestCancelled);
       webSocketService.on('fare_response_timeout', handleFareResponseTimeout);
       webSocketService.on('fare_response', handleFareResponse);
 
       return () => {
+        webSocketService.off('ride_request', handleNewRideRequest);
+        webSocketService.off('ride_request_cancelled', handleRideRequestCancelled);
         webSocketService.off('ride_cancelled', handleRideRequestCancelled);
         webSocketService.off('fare_response_timeout', handleFareResponseTimeout);
         webSocketService.off('fare_response', handleFareResponse);

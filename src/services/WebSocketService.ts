@@ -100,10 +100,22 @@ class WebSocketService {
         this.emit('driver_assigned', data);
       });
 
+      // Notify drivers about new ride requests pushed from backend
+      this.socket.on('ride_request', (data: any) => {
+        console.log('🆕 New ride_request received:', data);
+        this.emit('ride_request', data);
+      });
+
       // Handle ride request status updates
       this.socket.on('ride_request_status_update', (data: any) => {
         console.log('📊 Ride request status update:', data);
         this.emit('ride_request_status_update', data);
+      });
+
+      // Notify drivers when a ride request was cancelled via REST flow
+      this.socket.on('ride_request_cancelled', (data: any) => {
+        console.log('❌ ride_request_cancelled received:', data);
+        this.emit('ride_request_cancelled', data);
       });
 
       // Handle fare offer from driver
