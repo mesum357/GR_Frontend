@@ -487,6 +487,7 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
   };
 
   const handleCloseModal = () => {
+    console.log('🔧 Closing ride route modal');
     setIsModalVisible(false);
     setSelectedRideRequest(null);
   };
@@ -498,14 +499,21 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
 
   const handleModalAccept = async (rideRequestId: string, fareAmount: number) => {
     try {
-      const response = await authenticatedApiRequest(`/ride-requests/${rideRequestId}/accept`, {
+      console.log('🔧 Attempting to accept ride request:', { rideRequestId, fareAmount });
+      
+      const response = await authenticatedApiRequest(`/api/ride-requests/${rideRequestId}/respond`, {
         method: 'POST',
-        body: JSON.stringify({ fareAmount }),
+        body: JSON.stringify({ 
+          action: 'accept',
+          counterOffer: fareAmount
+        }),
       });
+
+      console.log('🔧 API Response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Ride accepted via modal:', data);
+        console.log('✅ Ride accepted via modal:', data);
         
         // Remove the accepted request from the list
         setRideRequests(prev => prev.filter(req => req.id !== rideRequestId));
@@ -516,21 +524,39 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
         
         Alert.alert('Success!', 'Ride request accepted successfully.');
       } else {
-        const errorData = await response.json();
-        Alert.alert('Error', errorData.message || 'Failed to accept ride request');
+        let errorMessage = 'Failed to accept ride request';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.error('❌ API Error Response:', errorData);
+        } catch (parseError) {
+          console.error('❌ Failed to parse error response:', parseError);
+          errorMessage = `Server error (${response.status})`;
+        }
+        
+        console.error('❌ Ride acceptance failed:', { status: response.status, message: errorMessage });
+        Alert.alert('Error', errorMessage);
       }
     } catch (error) {
-      console.error('Error accepting ride via modal:', error);
-      Alert.alert('Error', 'Failed to accept ride request');
+      console.error('❌ Error accepting ride via modal:', error);
+      const errorMessage = error.message || 'Network error occurred';
+      Alert.alert('Error', errorMessage);
     }
   };
 
   const handleModalOfferFare = async (rideRequestId: string, fareAmount: number) => {
     try {
-      const response = await authenticatedApiRequest(`/ride-requests/${rideRequestId}/offer`, {
+      console.log('🔧 Attempting to offer fare:', { rideRequestId, fareAmount });
+      
+      const response = await authenticatedApiRequest(`/api/ride-requests/${rideRequestId}/respond`, {
         method: 'POST',
-        body: JSON.stringify({ offer: fareAmount }),
+        body: JSON.stringify({ 
+          action: 'counter_offer',
+          counterOffer: fareAmount
+        }),
       });
+
+      console.log('🔧 Fare offer API Response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
@@ -551,12 +577,23 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
         
         Alert.alert('Success!', 'Fare offer sent successfully.');
       } else {
-        const errorData = await response.json();
-        Alert.alert('Error', errorData.message || 'Failed to send fare offer');
+        let errorMessage = 'Failed to offer fare';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.error('❌ Fare offer API Error Response:', errorData);
+        } catch (parseError) {
+          console.error('❌ Failed to parse fare offer error response:', parseError);
+          errorMessage = `Server error (${response.status})`;
+        }
+        
+        console.error('❌ Fare offer failed:', { status: response.status, message: errorMessage });
+        Alert.alert('Error', errorMessage);
       }
     } catch (error) {
-      console.error('Error sending fare offer via modal:', error);
-      Alert.alert('Error', 'Failed to send fare offer');
+      console.error('❌ Error offering fare via modal:', error);
+      const errorMessage = error.message || 'Network error occurred';
+      Alert.alert('Error', errorMessage);
     }
   };
 

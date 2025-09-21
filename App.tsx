@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 // Import theme and context
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { AppModeProvider } from './src/context/AppModeContext';
+import { AppModeProvider, useAppMode } from './src/context/AppModeContext';
 import { lightTheme, darkTheme } from './src/theme/theme';
 
 // Import navigators
@@ -26,11 +26,31 @@ const queryClient = new QueryClient();
 
 function AppContent() {
   const { theme, isDark } = useTheme();
-  const { isAuthenticated, isLoading, login, register } = useAuth();
+  const { isAuthenticated, isLoading, login, register, user } = useAuth();
+  const { setMode } = useAppMode();
+
+  // Set app mode based on user type when user is loaded from storage
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      const correctMode = user.userType === 'driver' ? 'driver' : 'passenger';
+      setMode(correctMode).then(() => {
+        console.log(`🔧 Set app mode to ${correctMode} for user:`, user.email);
+      });
+    }
+  }, [user, isAuthenticated, setMode]);
 
   const handleLogin = async (token: string, user: any) => {
     try {
       await login(token, user);
+      
+      // Set app mode based on user type
+      if (user.userType === 'driver') {
+        await setMode('driver');
+        console.log('🔧 Set app mode to driver for user:', user.email);
+      } else if (user.userType === 'rider') {
+        await setMode('passenger');
+        console.log('🔧 Set app mode to passenger for user:', user.email);
+      }
     } catch (error) {
       console.error('Login error:', error);
     }
@@ -39,6 +59,15 @@ function AppContent() {
   const handleRegister = async (token: string, user: any) => {
     try {
       await register(token, user);
+      
+      // Set app mode based on user type
+      if (user.userType === 'driver') {
+        await setMode('driver');
+        console.log('🔧 Set app mode to driver for new user:', user.email);
+      } else if (user.userType === 'rider') {
+        await setMode('passenger');
+        console.log('🔧 Set app mode to passenger for new user:', user.email);
+      }
     } catch (error) {
       console.error('Register error:', error);
     }

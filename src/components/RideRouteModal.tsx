@@ -70,6 +70,7 @@ const RideRouteModal: React.FC<RideRouteModalProps> = ({
     timestamp: number;
   } | null>(null);
   const isFareOfferModalOpenRef = useRef(false);
+  const isClosingRef = useRef(false);
 
   // Calculate map region to fit both pickup and destination
   const mapRegion = rideRequest ? (() => {
@@ -96,6 +97,8 @@ const RideRouteModal: React.FC<RideRouteModalProps> = ({
 
   useEffect(() => {
     if (visible && rideRequest) {
+      // Reset closing flag when modal opens
+      isClosingRef.current = false;
       setOfferedFare(rideRequest.requestedPrice);
       fetchRoute();
     }
@@ -130,6 +133,14 @@ const RideRouteModal: React.FC<RideRouteModalProps> = ({
       // Listen for fare response timeout
       const handleFareResponseTimeout = (data: any) => {
         console.log('⏰ Fare response timeout:', data);
+        
+        // Prevent multiple close calls
+        if (isClosingRef.current) {
+          console.log('🔧 Modal already closing, ignoring timeout close call');
+          return;
+        }
+        
+        isClosingRef.current = true;
         isFareOfferModalOpenRef.current = false;
         setShowFareOfferModal(false);
         onClose(); // Return to ride requests page
@@ -304,9 +315,20 @@ const RideRouteModal: React.FC<RideRouteModalProps> = ({
 
   const handleFareOfferComplete = () => {
     console.log('🔧 Fare offer completed, closing modal');
+    
+    // Prevent multiple close calls
+    if (isClosingRef.current) {
+      console.log('🔧 Modal already closing, ignoring duplicate close call');
+      return;
+    }
+    
+    isClosingRef.current = true;
     isFareOfferModalOpenRef.current = false;
     setShowFareOfferModal(false);
-    onClose(); // Close the modal and return to ride requests
+    
+    // Close the modal immediately
+    console.log('🔧 Calling onClose after fare offer completion');
+    onClose();
   };
 
   const adjustFare = (amount: number) => {

@@ -156,7 +156,25 @@ export const apiRequest = async (
   const config = getApiConfig();
   const url = buildApiUrl(endpoint);
   console.log(`📡 Connecting to Render backend: ${url}`);
-  return await makeRequestWithRetry(url, options);
+  const response = await makeRequestWithRetry(url, options);
+  
+  // Parse JSON and handle errors
+  let data;
+  try {
+    data = await response.json();
+    console.log('📥 Response data:', data);
+  } catch (parseError) {
+    console.error('❌ Failed to parse response as JSON:', parseError);
+    throw new Error(`Invalid response format: ${response.status}`);
+  }
+
+  if (!response.ok) {
+    const errorMessage = data?.error || data?.message || `HTTP ${response.status}`;
+    console.error('❌ API Error:', errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  return data;
 };
 
 // Helper function to check if server is responsive
@@ -279,24 +297,10 @@ const makeRequest = async (url: string, options: RequestInit = {}) => {
   try {
     const response = await fetch(url, finalOptions);
     clearTimeout(timeoutId);
-  console.log('📥 Response status:', response.status);
-  
-  let data;
-  try {
-    data = await response.json();
-    console.log('📥 Response data:', data);
-  } catch (parseError) {
-    console.error('❌ Failed to parse response as JSON:', parseError);
-    throw new Error(`Invalid response format: ${response.status}`);
-  }
-
-  if (!response.ok) {
-    const errorMessage = data?.error || data?.message || `HTTP ${response.status}`;
-    console.error('❌ API Error:', errorMessage);
-    throw new Error(errorMessage);
-  }
-
-  return data;
+    console.log('📥 Response status:', response.status);
+    
+    // Return the response object so callers can check response.ok and call response.json()
+    return response;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
@@ -307,8 +311,31 @@ const makeRequest = async (url: string, options: RequestInit = {}) => {
   }
 };
 
-// Helper function for authenticated API requests
+// Helper function for authenticated API requests that returns Response object
 export const authenticatedApiRequest = async (
+  endpoint: string,
+  options: RequestInit = {}
+) => {
+  // Get token from AsyncStorage or context
+  const token = await getStoredToken();
+  
+  const config = getApiConfig();
+  const url = buildApiUrl(endpoint);
+  console.log(`📡 Connecting to Render backend: ${url}`);
+  
+  const response = await makeRequestWithRetry(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  return response;
+};
+
+// Helper function for authenticated API requests that returns parsed data
+export const authenticatedApiRequestData = async (
   endpoint: string,
   options: RequestInit = {}
 ) => {

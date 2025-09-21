@@ -94,7 +94,7 @@ const RiderOfferModal: React.FC<RiderOfferModalProps> = React.memo(({
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     }
-  }, [visible, onTimeout]);
+  }, [visible]); // Remove onTimeout from dependencies to prevent timer reset
 
   const handleAccept = () => {
     console.log('🔧 RiderOfferModal: Accept button pressed');

@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 const DriverRegistrationScreen = () => {
   const { theme } = useTheme();
   const navigation = useNavigation();
-  const { token } = useAuth();
+  const { token, refreshUser } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -143,6 +143,9 @@ const DriverRegistrationScreen = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // Refresh user data to get updated userType
+        await refreshUser();
+        
         Alert.alert(
           'Success',
           'Driver registration successful! Your application will be reviewed.',

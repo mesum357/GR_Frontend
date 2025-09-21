@@ -95,7 +95,7 @@ const FareOfferModal: React.FC<FareOfferModalProps> = React.memo(({
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     }
-  }, [visible, onComplete]);
+  }, [visible]); // Remove onComplete from dependencies to prevent timer reset
 
   return (
     <Modal
