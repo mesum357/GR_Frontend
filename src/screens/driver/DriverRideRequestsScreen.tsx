@@ -11,6 +11,7 @@ import {
   AppStateStatus,
 } from 'react-native';
 import { Card, Title, Button, Avatar, ActivityIndicator, Chip, Switch } from 'react-native-paper';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -70,6 +71,17 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
   const [notifiedRequests, setNotifiedRequests] = useState<Set<string>>(new Set());
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const backgroundTaskRef = useRef<number | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debug, setDebug] = useState<{ 
+    lastAvailableEndpoint?: string;
+    lastAvailableStatus?: number;
+    lastAvailableCount?: number;
+    lastLocationStatus?: number;
+    lastLocationPayload?: { latitude: number; longitude: number } | null;
+    lastLocationError?: any;
+    tokenPresent?: boolean;
+    userId?: string;
+  }>({ tokenPresent: !!token, userId: user?._id });
 
   useEffect(() => {
     console.log('🔧 DriverRideRequestsScreen useEffect:', { 
@@ -321,9 +333,61 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
   const fetchRideRequests = async (showLoading = false) => {
     console.log('🔧 fetchRideRequests called:', { token: !!token, isOnline, showLoading });
     
-    if (!token || !isOnline) {
-      console.log('🔧 fetchRideRequests early return:', { token: !!token, isOnline });
+    if (!token) {
+      console.log('🔧 fetchRideRequests early return: No token');
       return;
+    }
+
+    // Always check and ensure driver is online
+    console.log('🔧 Checking driver status...');
+    try {
+      const driverStatusResponse = await authenticatedApiRequest('/api/drivers/check-registration');
+      
+      if (driverStatusResponse.ok) {
+        const driverStatusData = await driverStatusResponse.json();
+        console.log('🔧 Driver status:', {
+          isRegistered: driverStatusData.isRegistered,
+          isApproved: driverStatusData.isApproved,
+          isVerified: driverStatusData.isVerified,
+          isOnline: driverStatusData.isOnline,
+          hasDriverProfile: !!driverStatusData.driverProfile
+        });
+        
+        // If driver is not online, set them online
+        if (!driverStatusData.isOnline) {
+          console.log('🔧 Driver is offline, setting online...');
+          try {
+            const toggleResponse = await authenticatedApiRequest('/api/drivers/toggle-status', {
+              method: 'POST'
+            });
+            
+            if (toggleResponse.ok) {
+              const toggleData = await toggleResponse.json();
+              console.log('🔧 Driver status toggle response:', toggleData);
+              setIsOnline(toggleData.isOnline);
+            } else {
+              console.log('🔧 Toggle status failed, forcing online');
+              setIsOnline(true);
+            }
+          } catch (toggleError) {
+            console.log('🔧 Could not toggle driver status:', toggleError);
+            // Force set online for development
+            setIsOnline(true);
+          }
+        } else {
+          console.log('🔧 Driver is already online');
+          setIsOnline(true);
+        }
+      } else {
+        const errorData = await driverStatusResponse.json();
+        console.log('🔧 Driver status check failed:', errorData);
+        // Force set online for development
+        setIsOnline(true);
+      }
+    } catch (statusError) {
+      console.log('🔧 Could not check driver status:', statusError);
+      // Force set online for development
+      setIsOnline(true);
     }
 
     try {
@@ -331,18 +395,87 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
         setIsLoading(true);
       }
 
+      // Update driver location before fetching requests
+      try {
+        const { latitude, longitude } = await LocationService.getCurrentLocationCoordinates();
+        console.log('🔧 Updating driver location:', { latitude, longitude });
+        const locationResponse = await authenticatedApiRequest('/api/drivers/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude, longitude })
+        });
+        
+        if (locationResponse.ok) {
+          const locationData = await locationResponse.json();
+          console.log('🚗 Driver location updated before fetching requests:', { latitude, longitude, response: locationData });
+          setDebug(prev => ({
+            ...prev,
+            lastLocationStatus: 200,
+            lastLocationPayload: { latitude, longitude },
+            lastLocationError: undefined,
+          }));
+        } else {
+          const errorData = await locationResponse.json();
+          console.log('🔧 Location update failed:', errorData);
+          setDebug(prev => ({
+            ...prev,
+            lastLocationStatus: locationResponse.status,
+            lastLocationError: errorData,
+          }));
+        }
+      } catch (locationError) {
+        console.log('🔧 Could not update driver location:', locationError);
+        setDebug(prev => ({
+          ...prev,
+          lastLocationStatus: -1,
+          lastLocationError: (locationError as any)?.message || String(locationError),
+        }));
+      }
+
       console.log('🔧 Making API request to /api/ride-requests/available-simple');
-      const simpleData = await authenticatedApiRequest('/api/ride-requests/available-simple', {
+      const simpleResponse = await authenticatedApiRequest('/api/ride-requests/available-simple', {
         method: 'GET',
       });
 
-      const simpleList: RideRequest[] = (simpleData?.rideRequests || []) as RideRequest[];
-      const dedupSimple = simpleList.filter((request, index, self) => index === self.findIndex(r => r.id === request.id));
-      console.log('🔧 Simple list received:', dedupSimple.length);
-      setRideRequests(dedupSimple);
-      processNotifications();
-      if (dedupSimple.length !== rideRequests.length) {
-        console.log(`🔧 Ride requests updated: ${dedupSimple.length} available`);
+      if (simpleResponse.ok) {
+        const simpleData = await simpleResponse.json();
+        const simpleList: RideRequest[] = (simpleData?.rideRequests || simpleData || []) as RideRequest[];
+        const dedupSimple = simpleList.filter((request, index, self) => index === self.findIndex(r => r.id === request.id));
+        console.log('🔧 Simple list received:', dedupSimple.length);
+        console.log('🔧 Ride requests details:', dedupSimple.map(r => ({
+          id: r.id,
+          status: r.status,
+          pickupLocation: r.pickupLocation,
+          destination: r.dropoffLocation,
+          fare: r.estimatedFare,
+          createdAt: r.createdAt,
+          riderName: r.riderName
+        })));
+        setRideRequests(dedupSimple);
+        processNotifications();
+        if (dedupSimple.length !== rideRequests.length) {
+          console.log(`🔧 Ride requests updated: ${dedupSimple.length} available`);
+        }
+        setDebug(prev => ({
+          ...prev,
+          lastAvailableEndpoint: '/api/ride-requests/available-simple',
+          lastAvailableStatus: 200,
+          lastAvailableCount: dedupSimple.length,
+          tokenPresent: !!token,
+          userId: user?._id,
+        }));
+      } else {
+        const errorData = await simpleResponse.json();
+        console.log('🔧 Ride requests fetch failed:', errorData);
+        setRideRequests([]);
+        setDebug(prev => ({
+          ...prev,
+          lastAvailableEndpoint: '/api/ride-requests/available-simple',
+          lastAvailableStatus: simpleResponse.status,
+          lastAvailableCount: 0,
+          tokenPresent: !!token,
+          userId: user?._id,
+        }));
       }
     } catch (error) {
       console.error('Error fetching ride requests (simple):', error);
@@ -788,6 +921,93 @@ const DriverRideRequestsScreen: React.FC = React.memo(() => {
         />
       }
     >
+      {/* Debug Toggle */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 10, flexDirection: 'row', justifyContent: 'flex-end' }}>
+        <TouchableOpacity onPress={() => setDebugOpen(!debugOpen)} style={{ padding: 6, marginRight: 6 }}>
+          <Ionicons name={debugOpen ? 'bug' : 'bug-outline'} size={20} color={theme.colors.outline} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={async () => {
+            const payload = {
+              tokenPresent: debug.tokenPresent,
+              userId: debug.userId,
+              availEndpoint: debug.lastAvailableEndpoint,
+              availStatus: debug.lastAvailableStatus,
+              availCount: debug.lastAvailableCount,
+              locStatus: debug.lastLocationStatus,
+              locPayload: debug.lastLocationPayload,
+              locError: debug.lastLocationError,
+            };
+            try {
+              await Clipboard.setStringAsync(JSON.stringify(payload, null, 2));
+              console.log('🔧 Debug info copied to clipboard');
+            } catch (e) {
+              console.log('🔧 Failed to copy debug info', e);
+            }
+          }}
+          style={{ padding: 6 }}
+        >
+          <Ionicons name="copy-outline" size={20} color={theme.colors.outline} />
+        </TouchableOpacity>
+      </View>
+
+      {debugOpen && (
+        <Card style={{ marginHorizontal: 16, marginBottom: 10 }}>
+          <Card.Content onLongPress={async () => {
+            const payload = {
+              tokenPresent: debug.tokenPresent,
+              userId: debug.userId,
+              availEndpoint: debug.lastAvailableEndpoint,
+              availStatus: debug.lastAvailableStatus,
+              availCount: debug.lastAvailableCount,
+              locStatus: debug.lastLocationStatus,
+              locPayload: debug.lastLocationPayload,
+              locError: debug.lastLocationError,
+            };
+            try {
+              await Clipboard.setStringAsync(JSON.stringify(payload, null, 2));
+              console.log('🔧 Debug info copied to clipboard');
+            } catch (e) {
+              console.log('🔧 Failed to copy debug info', e);
+            }
+          }}>
+            <Text style={{ fontWeight: '600', marginBottom: 6, color: theme.colors.onSurface }}>Debug Info</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Token present: {String(debug.tokenPresent)}</Text>
+            <Text style={{ color: theme.colors.onSurface }}>User ID: {debug.userId || 'n/a'}</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Avail endpoint: {debug.lastAvailableEndpoint || 'n/a'}</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Avail status: {debug.lastAvailableStatus ?? 'n/a'}</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Avail count: {debug.lastAvailableCount ?? 'n/a'}</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Loc status: {debug.lastLocationStatus ?? 'n/a'}</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Loc payload: {debug.lastLocationPayload ? `${debug.lastLocationPayload.latitude.toFixed(5)}, ${debug.lastLocationPayload.longitude.toFixed(5)}` : 'n/a'}</Text>
+            {!!debug.lastLocationError && (
+              <Text style={{ color: theme.colors.error }}>Loc error: {typeof debug.lastLocationError === 'string' ? debug.lastLocationError : JSON.stringify(debug.lastLocationError)}</Text>
+            )}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+              <Button
+                mode="outlined"
+                onPress={async () => {
+                  const payload = {
+                    tokenPresent: debug.tokenPresent,
+                    userId: debug.userId,
+                    availEndpoint: debug.lastAvailableEndpoint,
+                    availStatus: debug.lastAvailableStatus,
+                    availCount: debug.lastAvailableCount,
+                    locStatus: debug.lastLocationStatus,
+                    locPayload: debug.lastLocationPayload,
+                    locError: debug.lastLocationError,
+                  };
+                  try {
+                    await Clipboard.setStringAsync(JSON.stringify(payload, null, 2));
+                    console.log('🔧 Debug info copied to clipboard');
+                  } catch (e) {
+                    console.log('🔧 Failed to copy debug info', e);
+                  }
+                }}
+              >Copy</Button>
+            </View>
+          </Card.Content>
+        </Card>
+      )}
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
         <View style={styles.headerContent}>

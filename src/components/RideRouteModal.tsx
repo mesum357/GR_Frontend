@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
+  Alert,
 } from 'react-native';
-import { Text, Surface, IconButton } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GoogleMapsService } from '../services/GoogleMapsService';
@@ -385,6 +386,7 @@ const RideRouteModal: React.FC<RideRouteModalProps> = ({
         {/* Map Section */}
         <View style={styles.mapContainer}>
           <MapView
+            key={rideRequest._id}
             style={styles.map}
             provider={PROVIDER_GOOGLE}
             showsUserLocation={false}
@@ -438,25 +440,35 @@ const RideRouteModal: React.FC<RideRouteModalProps> = ({
               </View>
             </Marker>
 
-            {/* Route Polyline */}
-            {routeCoordinates.length > 0 && (
-              <Polyline
-                coordinates={routeCoordinates}
-                strokeColor="#4CAF50"
-                strokeWidth={5}
-                lineDashPattern={[5, 5]}
-                lineCap="round"
-                lineJoin="round"
-              />
-            )}
-            
-            {/* Loading indicator for route */}
-            {isLoadingRoute && (
-              <View style={styles.routeLoadingOverlay}>
-                <Text style={styles.routeLoadingText}>Loading route...</Text>
-              </View>
-            )}
+            {/* Route Polyline - keep element mounted to avoid Android addViewAt crash */}
+            <Polyline
+              coordinates={
+                routeCoordinates.length >= 2
+                  ? routeCoordinates
+                  : [
+                      {
+                        latitude: rideRequest.pickupLocationDetails.coordinates[1],
+                        longitude: rideRequest.pickupLocationDetails.coordinates[0],
+                      },
+                      {
+                        latitude: rideRequest.pickupLocationDetails.coordinates[1] + 0.00001,
+                        longitude: rideRequest.pickupLocationDetails.coordinates[0] + 0.00001,
+                      },
+                    ]
+              }
+              strokeColor="#4CAF50"
+              strokeWidth={routeCoordinates.length >= 2 ? 5 : 0}
+              lineDashPattern={[5, 5]}
+              lineCap="round"
+              lineJoin="round"
+            />
           </MapView>
+          {/* Loading indicator for route (must NOT be a child of MapView on Android) */}
+          {isLoadingRoute && (
+            <View style={styles.routeLoadingOverlay}>
+              <Text style={styles.routeLoadingText}>Loading route...</Text>
+            </View>
+          )}
 
           {/* Map Overlay Info - Pickup */}
           <View style={styles.pickupOverlay}>

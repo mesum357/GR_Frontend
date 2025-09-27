@@ -1,4 +1,5 @@
 import io, { Socket } from 'socket.io-client';
+import { getApiConfig } from '../config/api';
 
 export interface WebSocketMessage {
   type: string;
@@ -40,7 +41,8 @@ class WebSocketService {
 
   private connect() {
     try {
-      this.socket = io('https://backend-gr-x2ki.onrender.com', {
+      const apiConfig = getApiConfig();
+      this.socket = io(apiConfig.baseURL, {
         transports: ['websocket', 'polling'],
         timeout: 20000,
         forceNew: true,

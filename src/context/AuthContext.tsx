@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authenticatedApiRequest } from '../config/api';
 
 interface User {
   _id: string;
@@ -29,7 +28,6 @@ interface AuthContextType {
   register: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -131,29 +129,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const refreshUser = async () => {
-    if (!token) {
-      console.warn('No token available for refresh');
-      return;
-    }
-
-    try {
-      console.log('🔄 Refreshing user data...');
-      const userData = await authenticatedApiRequest('/api/users/profile');
-      
-      if (userData.user) {
-        const updatedUser = userData.user;
-        setUser(updatedUser);
-        
-        // Update stored user data
-        await AsyncStorage.setItem('authUser', JSON.stringify(updatedUser));
-        console.log('✅ User data refreshed successfully');
-      }
-    } catch (error) {
-      console.error('Error refreshing user data:', error);
-    }
-  };
-
   const value: AuthContextType = {
     user,
     token,
@@ -163,7 +138,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     updateUser,
-    refreshUser,
   };
 
   return (

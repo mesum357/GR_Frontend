@@ -25,33 +25,20 @@ const FareOfferModal: React.FC<FareOfferModalProps> = React.memo(({
   fareAmount,
   arrivalTime,
 }) => {
-  const [progress, setProgress] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (visible) {
       console.log('🔧 FareOfferModal: Modal opened, starting timer');
       
-      // Reset progress and time
-      setProgress(0);
+      // Reset time
       setTimeLeft(15);
 
       // Clear any existing timers
       if (timerRef.current) clearTimeout(timerRef.current);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
-
-      // Update progress every second
-      progressIntervalRef.current = setInterval(() => {
-        setProgress(prev => {
-          const newProgress = prev + (100 / 15); // 100% over 15 seconds
-          console.log('🔧 Progress:', newProgress);
-          return Math.min(newProgress, 100);
-        });
-      }, 1000);
 
       // Update time left every second
       timeIntervalRef.current = setInterval(() => {
@@ -86,13 +73,11 @@ const FareOfferModal: React.FC<FareOfferModalProps> = React.memo(({
       return () => {
         console.log('🔧 FareOfferModal: Cleaning up timers');
         if (timerRef.current) clearTimeout(timerRef.current);
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
       };
     } else {
       // Modal is not visible, clean up timers
       if (timerRef.current) clearTimeout(timerRef.current);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     }
   }, [visible]); // Remove onComplete from dependencies to prevent timer reset
@@ -110,18 +95,9 @@ const FareOfferModal: React.FC<FareOfferModalProps> = React.memo(({
           <Text style={styles.fareAmount}>PKR {fareAmount}</Text>
           <Text style={styles.arrivalTime}>Arriving in {arrivalTime} minutes</Text>
           
-          {/* Line Loader */}
-          <View style={styles.loaderContainer}>
-            <View style={styles.loaderBackground}>
-              <View 
-                style={[
-                  styles.loaderProgress,
-                  { width: `${progress}%` }
-                ]}
-              />
-            </View>
+          {/* Countdown Timer */}
+          <View style={styles.timerContainer}>
             <Text style={styles.timeLeftText}>{timeLeft}s remaining</Text>
-            <Text style={styles.progressText}>{Math.round(progress)}%</Text>
           </View>
           
           <Text style={styles.waitText}>Wait for the reply</Text>
@@ -180,37 +156,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontWeight: '500',
   },
-  loaderContainer: {
+  timerContainer: {
     marginVertical: 20,
     alignItems: 'center',
     width: '100%',
-  },
-  loaderBackground: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#333333',
-    borderRadius: 3,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#444444',
-  },
-  loaderProgress: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 3,
-    minWidth: 2, // Ensure it's always visible
   },
   timeLeftText: {
     fontSize: 14,
     color: '#4CAF50',
     marginTop: 8,
     fontWeight: '600',
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#888888',
-    marginTop: 4,
-    fontWeight: '500',
   },
 });
 

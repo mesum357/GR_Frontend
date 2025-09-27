@@ -4,7 +4,7 @@ import { Card, Title, Button, Avatar, ActivityIndicator, Paragraph, Chip } from 
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { authenticatedApiRequest } from '../config/api';
+import { authenticatedApiRequestData } from '../config/api';
 
 const DriverProfileScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -23,13 +23,13 @@ const DriverProfileScreen: React.FC = () => {
 
     try {
       // First get driver profile
-      const profileData = await authenticatedApiRequest('/api/drivers/profile');
+      const profileData = await authenticatedApiRequestData('/api/drivers/profile');
       setDriverProfile(profileData.driver);
 
       // Only fetch ride requests if driver is online
       if (profileData.driver?.isOnline) {
         try {
-          const requestsData = await authenticatedApiRequest('/api/drivers/available-requests');
+          const requestsData = await authenticatedApiRequestData('/api/drivers/available-requests');
           setRideRequests(requestsData.requests || []);
         } catch (requestError) {
           console.log('Could not fetch ride requests:', requestError.message);
@@ -53,7 +53,7 @@ const DriverProfileScreen: React.FC = () => {
 
   const toggleOnlineStatus = async () => {
     try {
-      const data = await authenticatedApiRequest('/api/drivers/toggle-status', {
+      const data = await authenticatedApiRequestData('/api/drivers/toggle-status', {
         method: 'POST',
       });
 
@@ -66,7 +66,7 @@ const DriverProfileScreen: React.FC = () => {
       // If going online, fetch ride requests
       if (data.isOnline) {
         try {
-          const requestsData = await authenticatedApiRequest('/api/drivers/available-requests');
+          const requestsData = await authenticatedApiRequestData('/api/drivers/available-requests');
           setRideRequests(requestsData.requests || []);
         } catch (requestError) {
           console.log('Could not fetch ride requests:', requestError.message);

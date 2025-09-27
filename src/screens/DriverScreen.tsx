@@ -14,13 +14,13 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { DriverStackParamList } from '../navigation/DriverNavigator';
 import { useAuth } from '../context/AuthContext';
-import { authenticatedApiRequest, API_ENDPOINTS } from '../config/api';
+import { authenticatedApiRequestData, API_ENDPOINTS } from '../config/api';
 import DriverDashboardScreen from './driver/DriverDashboardScreen';
 
 const DriverScreen = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<StackNavigationProp<DriverStackParamList>>();
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +29,7 @@ const DriverScreen = () => {
 
   useEffect(() => {
     checkDriverRegistration();
-  }, [user]); // Re-check when user changes
+  }, []);
 
   const checkDriverRegistration = async () => {
     if (!token) {
@@ -37,28 +37,9 @@ const DriverScreen = () => {
       return;
     }
 
-    // First check if user type is driver
-    if (user?.userType === 'driver') {
-      console.log('🚗 User is already registered as driver based on userType');
-      setIsRegisteredDriver(true);
-      setIsLoading(false);
-      
-      // Still try to get driver profile for additional data
-      try {
-        const data = await authenticatedApiRequest('/api/drivers/check-registration');
-        if (data.driverProfile) {
-          setDriverProfile(data.driverProfile);
-        }
-      } catch (error) {
-        console.log('Could not fetch additional driver profile data:', error);
-      }
-      return;
-    }
-
-    // If user type is not driver, check via API
     try {
-      console.log('🚗 Checking driver registration via API...');
-      const data = await authenticatedApiRequest('/api/drivers/check-registration');
+      console.log('🚗 Checking driver registration...');
+      const data = await authenticatedApiRequestData('/api/drivers/check-registration');
       
       console.log('🚗 Driver registration response:', data);
       setIsRegisteredDriver(data.isRegistered || false);

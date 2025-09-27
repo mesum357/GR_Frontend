@@ -13,11 +13,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { buildApiUrl } from '../config/api';
 
 const DriverRegistrationScreen = () => {
   const { theme } = useTheme();
   const navigation = useNavigation();
-  const { token, refreshUser } = useAuth();
+  const { token } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -131,7 +132,7 @@ const DriverRegistrationScreen = () => {
         },
       };
 
-      const response = await fetch('https://backend-gr-x2ki.onrender.com/api/drivers/register', {
+      const response = await fetch(buildApiUrl('/api/drivers/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -143,9 +144,6 @@ const DriverRegistrationScreen = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Refresh user data to get updated userType
-        await refreshUser();
-        
         Alert.alert(
           'Success',
           'Driver registration successful! Your application will be reviewed.',

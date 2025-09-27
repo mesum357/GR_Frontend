@@ -17,6 +17,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { getApiConfig } from '../config/api';
 import InteractiveRideMap from '../components/InteractiveRideMap';
 import TransportModeSelector, { TransportMode } from '../components/TransportModeSelector';
 import RouteEntryModal from '../components/RouteEntryModal';
@@ -406,7 +407,8 @@ const RiderScreen = () => {
       if (currentRideRequestId && token) {
         console.log('🔧 Cancelling ride request:', currentRideRequestId);
         
-        const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${currentRideRequestId}/cancel`, {
+        const apiConfig = getApiConfig();
+        const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/${currentRideRequestId}/cancel`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -427,7 +429,8 @@ const RiderScreen = () => {
           
           // Debug: Check the status after cancellation
           try {
-            const debugResponse = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${currentRideRequestId}/debug`, {
+            const apiConfig = getApiConfig();
+            const debugResponse = await fetch(`${apiConfig.baseURL}/api/ride-requests/${currentRideRequestId}/debug`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
               },
@@ -487,7 +490,8 @@ const RiderScreen = () => {
     
     try {
       // Create ride request
-      const response = await fetch('https://backend-gr-x2ki.onrender.com/api/ride-requests/create', {
+      const apiConfig = getApiConfig();
+      const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

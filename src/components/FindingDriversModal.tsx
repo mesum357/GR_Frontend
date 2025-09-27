@@ -20,6 +20,7 @@ import MapView, { Marker, Circle, Polyline, PROVIDER_GOOGLE } from 'react-native
 import { LocationService } from '../services/LocationService';
 import DriverOfferModal from './DriverOfferModal';
 import { GoogleMapsService } from '../services/GoogleMapsService';
+import { getApiConfig, authenticatedApiRequestData } from '../config/api';
 import io from 'socket.io-client';
 
 const { width, height } = Dimensions.get('window');
@@ -250,7 +251,8 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
       // Poll for ride request status every 2 seconds
       const pollInterval = setInterval(async () => {
         try {
-          const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${rideRequestId}/status`, {
+          const apiConfig = getApiConfig();
+          const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/${rideRequestId}/status`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -303,14 +305,16 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
     setSearchTime(0);
     
     try {
+      if (!user || user.userType !== 'rider') {
+        Alert.alert('Login required', 'Please login as a rider to request a ride.');
+        setIsSearching(false);
+        return;
+      }
       console.log('🔧 Payment method being sent:', currentPaymentMethod);
-      // Call the new API endpoint
-      const response = await fetch('https://backend-gr-x2ki.onrender.com/api/ride-requests/request-ride', {
+      // Call the endpoint via authenticated helper (ensures fresh token/headers)
+      const data = await authenticatedApiRequestData('/api/ride-requests/request-ride', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pickup: {
             latitude: pickupLocation.latitude,
@@ -323,20 +327,16 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
             address: destination.address
           },
           offeredFare: currentFare,
-          radiusMeters: searchRadius * 1000, // Convert km to meters
+          radiusMeters: searchRadius * 1000,
           paymentMethod: currentPaymentMethod,
           vehicleType: 'any',
           notes: ''
-        }),
+        })
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
-      const data = await response.json();
       console.log('Response data:', data);
 
-      if (response.ok) {
+      if (data && data.rideRequest) {
         console.log('Ride request sent to drivers:', data);
         
         // Set the ride request ID for cancellation
@@ -364,7 +364,7 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
 
       } else {
         console.error('API Error:', data);
-        Alert.alert('Error', data.error || 'Failed to send ride request');
+        Alert.alert('Error', data?.error || 'Failed to send ride request');
         setIsSearching(false);
       }
     } catch (error) {
@@ -422,7 +422,8 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
     if (rideRequestId && token) {
       try {
         console.log(`🚫 Cancelling previous ride request: ${rideRequestId}`);
-        const cancelResponse = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${rideRequestId}/cancel`, {
+        const apiConfig = getApiConfig();
+        const cancelResponse = await fetch(`${apiConfig.baseURL}/api/ride-requests/${rideRequestId}/cancel`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -444,7 +445,8 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
     try {
       console.log(`💰 Creating new ride request with raised fare: PKR ${newFare}`);
       
-      const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/request-ride`, {
+      const apiConfig = getApiConfig();
+      const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/request-ride`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -545,7 +547,8 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
     
     try {
       console.log('🔍 Starting search for drivers...');
-      const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${rideRequestId}/start-searching`, {
+      const apiConfig = getApiConfig();
+      const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/${rideRequestId}/start-searching`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -568,7 +571,8 @@ const FindingDriversModal: React.FC<FindingDriversModalProps> = ({
     
     try {
       console.log('⏸️ Stopping search for drivers...');
-      const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${rideRequestId}/stop-searching`, {
+      const apiConfig = getApiConfig();
+      const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/${rideRequestId}/stop-searching`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

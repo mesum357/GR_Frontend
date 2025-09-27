@@ -14,6 +14,7 @@ import { Card, Title, Button, Chip, Avatar } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { getApiConfig } from '../config/api';
 import * as Location from 'expo-location';
 import io from 'socket.io-client';
 
@@ -116,7 +117,8 @@ const DriverDashboardScreen = () => {
         try {
           if (driverLocation) {
             // Use location-based endpoint if location is available
-            const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/available?latitude=${driverLocation.latitude}&longitude=${driverLocation.longitude}&radius=1.2`, {
+            const apiConfig = getApiConfig();
+            const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/available?latitude=${driverLocation.latitude}&longitude=${driverLocation.longitude}&radius=1.2`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
               },
@@ -128,7 +130,8 @@ const DriverDashboardScreen = () => {
             }
           } else {
             // Fallback to simple endpoint if no location
-            const response = await fetch('https://backend-gr-x2ki.onrender.com/api/ride-requests/available-simple', {
+            const apiConfig = getApiConfig();
+            const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/available-simple`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
               },
@@ -161,7 +164,8 @@ const DriverDashboardScreen = () => {
       if (!driverLocation) {
         console.log('🔧 No driver location available, using simple endpoint');
         // Fallback to simple endpoint if no location
-        const response = await fetch('https://backend-gr-x2ki.onrender.com/api/ride-requests/available-simple', {
+        const apiConfig = getApiConfig();
+        const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/available-simple`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -179,7 +183,8 @@ const DriverDashboardScreen = () => {
         return;
       }
 
-      const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/available?latitude=${driverLocation.latitude}&longitude=${driverLocation.longitude}&radius=1.2`, {
+      const apiConfig = getApiConfig();
+      const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/available?latitude=${driverLocation.latitude}&longitude=${driverLocation.longitude}&radius=1.2`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -212,7 +217,8 @@ const DriverDashboardScreen = () => {
 
   const handleAcceptRide = async (rideRequestId: string) => {
     try {
-      const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${rideRequestId}/respond`, {
+      const apiConfig = getApiConfig();
+      const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/${rideRequestId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -247,7 +253,8 @@ const DriverDashboardScreen = () => {
       const offerAmount = parseFloat(counterOffer);
       if (offerAmount > 0) {
         try {
-          const response = await fetch(`https://backend-gr-x2ki.onrender.com/api/ride-requests/${negotiationModal.rideRequest.id}/respond`, {
+          const apiConfig = getApiConfig();
+          const response = await fetch(`${apiConfig.baseURL}/api/ride-requests/${negotiationModal.rideRequest.id}/respond`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

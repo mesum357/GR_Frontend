@@ -1,8 +1,8 @@
 // API Configuration
 const API_CONFIG = {
-  // Development - use Render backend for consistency
+  // Development - use localhost backend
   development: {
-    baseURL: 'https://backend-gr-x2ki.onrender.com', // Render backend
+    baseURL: 'http://192.168.0.222:8080', // Local backend - auto-updated
     timeout: 15000,
   },
   // Production - use your actual domain
@@ -74,26 +74,20 @@ const getEnvironment = () => {
   return process.env.NODE_ENV || 'development';
 };
 
-// Auto-detect network IP or use fallback
-const getNetworkIP = () => {
-  // Use localhost backend
-  return '192.168.98.62';
-};
-
-// Get base URL based on platform
+// Get base URL based on environment
 const getBaseURL = () => {
-  // Use localhost backend
-  return 'https://backend-gr-x2ki.onrender.com';
+  const env = getEnvironment();
+  return API_CONFIG[env].baseURL;
 };
 
 // Get API config for current environment
 export const getApiConfig = () => {
   const env = getEnvironment();
-  const baseURL = getBaseURL();
+  const config = API_CONFIG[env];
   
   return {
-    baseURL,
-    timeout: 10000,
+    baseURL: config.baseURL,
+    timeout: config.timeout,
   };
 };
 
@@ -155,7 +149,7 @@ export const apiRequest = async (
 ) => {
   const config = getApiConfig();
   const url = buildApiUrl(endpoint);
-  console.log(`📡 Connecting to Render backend: ${url}`);
+  console.log(`📡 Connecting to backend: ${url}`);
   const response = await makeRequestWithRetry(url, options);
   
   // Parse JSON and handle errors
